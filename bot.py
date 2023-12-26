@@ -18,6 +18,7 @@ class JeopardyBot(commands.Bot):
         initial_extensions: List[str],
         web_client: ClientSession,
         testing_guild_id: Optional[int] = None,
+        clear_all_commands: bool = False,
         sync_all_commands: bool = False,
         **kwargs,
     ):
@@ -25,6 +26,7 @@ class JeopardyBot(commands.Bot):
         self.web_client = web_client
         self.testing_guild_id = testing_guild_id
         self.initial_extensions = initial_extensions
+        self.clear_all_commands = clear_all_commands
         self.sync_all_commands = sync_all_commands
 
     async def setup_hook(self) -> None:
@@ -34,6 +36,8 @@ class JeopardyBot(commands.Bot):
         for extension in self.initial_extensions:
             await self.load_extension(extension)
 
+        if self.clear_all_commands:
+            self.tree.clear_commands(guild=None)
         # In overriding setup hook,
         # we can do things that require a bot prior to starting to process events from the websocket.
         # In this case, we are using this to ensure that once we are connected, we sync for the testing guild.
@@ -46,6 +50,9 @@ class JeopardyBot(commands.Bot):
             self.tree.copy_global_to(guild=guild)
             # followed by syncing to the testing guild.
             await self.tree.sync(guild=guild)
+
+        if self.sync_all_commands:
+            await self.tree.sync()
 
         # This would also be a good place to connect to our database and
         # load anything that should be in memory prior to handling events.
@@ -96,6 +103,7 @@ async def main():
                                web_client=our_client,
                                initial_extensions=exts,
                                testing_guild_id=os.getenv('TEST_SERVER_ID', ''),
+                               clear_all_commands=(os.getenv('CLEAR_ALL_COMMANDS', '').upper() == "TRUE"),
                                sync_all_commands=(os.getenv('SYNC_ALL_COMMANDS', '').upper() == "TRUE"),
                                intents=intents
                             ) as bot:
